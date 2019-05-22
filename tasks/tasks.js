@@ -392,6 +392,31 @@ const createTask = async (req, res) => {
     }
 };
 
+const getNotDoneWorks = async (req, res) => {
+    const body = req.body;
+    const text = `SELECT * FROM resh.work
+WHERE id in (SELECT workid FROM resh.worklearner WHERE (learnerid = '${body.id}' AND isdone is FALSE))`;
+
+    try {
+        const {rows} = await pool.query(text);
+        return res.status(200).send(rows);
+    } catch (error) {
+        return res.status(404).send(error);
+    }
+};
+
+const getTasksFromWork = async (req, res) => {
+    const body = req.body;
+    const text = `SELECT tasktext, resh.section.title FROM resh.task JOIN resh.section ON task.section = section.id WHERE resh.task.id IN (SELECT taskid FROM resh.work_tasks WHERE workid = '${body.id}')`;
+    try {
+        const {rows} = await pool.query(text);
+        return res.status(200).send(rows);
+    } catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+};
+
 
 module.exports = {
     getTasks,
@@ -406,5 +431,7 @@ module.exports = {
     getDoneWorks,
     getMaximumTasks,
     createWork,
-    createTask
+    createTask,
+    getNotDoneWorks,
+    getTasksFromWork
 };
