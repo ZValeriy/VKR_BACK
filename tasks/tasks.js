@@ -407,7 +407,7 @@ WHERE id in (SELECT workid FROM resh.worklearner WHERE (learnerid = '${body.id}'
 
 const getTasksFromWork = async (req, res) => {
     const body = req.body;
-    const text = `SELECT tasktext, resh.section.title FROM resh.task JOIN resh.section ON task.section = section.id WHERE resh.task.id IN (SELECT taskid FROM resh.work_tasks WHERE workid = '${body.id}')`;
+    const text = `SELECT resh.task.id, tasktext, resh.section.title FROM resh.task JOIN resh.section ON task.section = section.id WHERE resh.task.id IN (SELECT taskid FROM resh.work_tasks WHERE workid = '${body.id}')`;
     try {
         const {rows} = await pool.query(text);
         return res.status(200).send(rows);
@@ -416,6 +416,111 @@ const getTasksFromWork = async (req, res) => {
         return res.status(404).send(error);
     }
 };
+
+const submitWork = async (req, res) => {
+    const body = req.body;
+    const ids = Object.keys(body);
+    let tmpText = '(';
+    ids.forEach(item => {
+        tmpText += `'${item}',`;
+        return item;
+    });
+
+    tmpText = tmpText.slice(0, tmpText.length - 1);
+    tmpText += ')';
+    console.log(tmpText);
+
+    let selected = [];
+    const text = `SELECT resh.task.id, resh.task.taskanswer, resh.task.type FROM resh.task WHERE id in ${tmpText}`;
+    try {
+        const {rows} = await pool.query(text);
+        selected = rows;
+        // return res.status(200).send(rows);
+    } catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+
+    const {grade, maxGrade, tasksChecked} = checkWork(body, selected);
+
+    let doneWorkId = '';
+    const addToDoneWorkText = `INSER INTO resh.donework(learnerid, workid, grade, maxgrade) VALUES('${learnerId}','${workid}','${grade}','${maxGrade}') RETURNING resh.donework.id`;
+    try {
+        const {rows} = await pool.query(addToDoneWorkText);
+        doneWorkId = rows[0].id;
+        // return res.status(200).send(rows);
+    } catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+
+    tmpText = '';
+    tasksChecked.forEach(item => {
+        tmpText += `('${doneWorkId}', '${item.id}', '${item.isright}'),`;
+        return item;
+    });
+
+    tmpText = tmpText.slice(0, tmpText.length - 1);
+
+    const insertTasksDoneWorkText = `INSERT INTO resh.doneworktask(doneworkid, taskid, isright) VALUES ${tmpText};`
+    try {
+        const {rows} = await pool.query(insertTasksDoneWorkText);
+        return res.status(200).send(rows);
+    } catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+};
+
+function checkWork(learnerAnswers, tasks) {
+    let grade = 0;
+    let maxGrade = 0;
+    tasks.forEach(item => {
+        switch(item.type) {
+            case 1:
+                maxGrade += 1;
+                if(item.taskanswer === learnerAnswers[item.id]) {
+                    grade += 1;
+                    item.isright = 1;
+                    break;
+                }
+                item.isright = 0;
+                break;
+            case 2:
+                //похуй на порядок
+                maxGrade += 2;
+                if (true) {
+                    grade += 2;
+                    item.isright = 1;
+                    break;
+                }
+                if (!true) {
+                    grade += 1;
+                    item.isright = 0.5;
+                    break;
+                }
+                item.isright = 0;
+                break;
+            case 3:
+                //не похуй на порядок
+                maxGrade += 2;
+                if (true) {
+                    grade += 2;
+                    item.isright = 1;
+                    break;
+                }
+                if (!true) {
+                    grade += 1;
+                    item.isright = 0.5;
+                    break;
+                }
+                item.isright = 0;
+        }
+        return item;
+    })
+
+    return {grade: grade, maxGrade: maxGrade, tasksChecked: tasks};
+}
 
 
 module.exports = {
@@ -433,5 +538,6 @@ module.exports = {
     createWork,
     createTask,
     getNotDoneWorks,
-    getTasksFromWork
+    getTasksFromWork,
+    submitWork
 };

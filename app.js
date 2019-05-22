@@ -163,6 +163,7 @@ app.get('/getMaximumTasks', db.getMaximumTasks);
 app.post('/getLearners', db.getLearners);
 app.post('/getDoneWorks', db.getDoneWorks);
 app.post('/getTasksFromWork', db.getTasksFromWork);
+app.post('/submitWork', db.submitWork);
 app.post('/addLearner', db.addLearner);
 app.post('/getNotDoneWorks', db.getNotDoneWorks);
 app.post('/createWork', db.createWork);
